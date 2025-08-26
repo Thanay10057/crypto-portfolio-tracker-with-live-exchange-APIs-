@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Crypto Portfolio Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    h1 { color: #333; }
+    table { width: 60%; border-collapse: collapse; margin-bottom: 30px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background: #f4f4f4; }
+    .total { font-weight: bold; }
+    canvas { margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <h1>💰 Crypto Portfolio Dashboard</h1>
+
+  <table id="portfolioTable">
+    <thead>
+      <tr>
+        <th>Coin</th>
+        <th>Amount</th>
+        <th>Price (USD)</th>
+        <th>Value (USD)</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot>
+      <tr class="total">
+        <td colspan="3">Total Value</td>
+        <td id="totalValue">$0.00</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <h2>Portfolio Distribution</h2>
+  <canvas id="portfolioChart" width="400" height="400"></canvas>
+
+  <h2>Portfolio Value Over Time</h2>
+  <canvas id="historyChart" width="600" height="300"></canvas>
+
+  <script>
+    let pieChart, historyChart;
+
+    async function loadPortfolio() {
+      const response = await fetch("/portfolio");
+      const data = await response.json();
+
+      // Update table
+      const tbody = document.querySelector("#portfolioTable tbody");
+      tbody.innerHTML = "";
+      data.portfolio.forEach(item => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${item.coin}</td>
+            <td>${item.amount}</td>
+            <td>$${item.price.toFixed(2)}</td>
+            <td>$${item.value.toFixed(2)}</td>
+          </tr>`;
+      });
+      document.getElementById("totalValue").innerText = "$" + data.total.toFixed(2);
+
+      // Update pie chart
+      const labels = data.portfolio.map(item => item.coin);
+      const values = data.portfolio.map(item => item.value);
+
+      if (pieChart) pieChart.destroy();
+      pieChart = new Chart(document.getElementById("portfolioChart"), {
+        type: "pie",
+        data: {
+          labels: labels,
+          datasets: [{
+            data: values,
+            backgroundColor: ["#f39c12","#2ecc71","#3498db","#9b59b6","#e74c3c"]
+          }]
+        }
+      });
+    }
+
+    async function loadHistory() {
+      const response = await fetch("/history");
+      const history = await response.json();
+
+      const labels = history.map(item => item.date);
+      const values = history.map(item => item.total);
+
+      if (historyChart) historyChart.destroy();
+      historyChart = new Chart(document.getElementById("historyChart"), {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "Total Portfolio Value (USD)",
+            data: values,
+            borderColor: "#2ecc71",
+            fill: false,
+            tension: 0.1
+          }]
+        }
+      });
+    }
+
+    async function refreshDashboard() {
+      await loadPortfolio();
+      await loadHistory();
+    }
+
+    // Initial load
+    refreshDashboard();
+
+    // Refresh every 60 seconds
+    setInterval(refreshDashboard, 60000);
+  </script>
+</body>
+</html>
